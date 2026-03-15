@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitOps-FinOps Showcase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 0, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        a {
+            color: #a5b4fc;
+        }
+        a:hover {
+            color: #c7d2fe;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 GitOps-FinOps Showcase</h1>
+    
+    <div class="card">
+        <h2>Application Status</h2>
+        <p><span class="status">Healthy</span></p>
+        <p>This application is deployed using GitOps principles with Argo CD and monitored for cost allocation with Kubecost.</p>
+    </div>
+
+    <div class="card">
+        <h2>Endpoints</h2>
+        <ul>
+            <li><code>/</code> - Application info (JSON)</li>
+            <li><code>/health</code> - Health check for Kubernetes</li>
+            <li><code>/ready</code> - Readiness probe</li>
+            <li><code>/metrics</code> - Prometheus metrics</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>GitOps Pipeline</h2>
+        <p>Code changes trigger CI → Image build → Argo CD sync → Kubernetes deployment</p>
+        <p>Environment promotion is automated for dev and PR-gated for production.</p>
+    </div>
+
+    <div class="card">
+        <h2>FinOps Integration</h2>
+        <p>Cost allocation by namespace and labels via Kubecost.</p>
+        <p>Pod labels: <code>environment</code>, <code>team</code>, <code>cost-center</code>, <code>owner</code></p>
+    </div>
+
+    <footer style="margin-top: 40px; text-align: center; opacity: 0.8;">
+        <p>Built for the GitOps-FinOps showcase</p>
+    </footer>
+
+    <script>
+        // Simple fetch to show the app is working
+        fetch('/health')
+            .then(r => r.json())
+            .then(data => {
+                console.log('Health check:', data);
+            })
+            .catch(err => {
+                console.error('Health check failed:', err);
+            });
+    </script>
+</body>
+</html>
