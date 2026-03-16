@@ -37,7 +37,7 @@ RUN addgroup -g 1001 -S appgroup && \
 # Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config for health checks
+# Create nginx config with health check
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \
@@ -53,11 +53,19 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-# Set proper permissions
+# Fix permissions for non-root user
 RUN chown -R appuser:appgroup /usr/share/nginx/html && \
     chown -R appuser:appgroup /var/cache/nginx && \
     chown -R appuser:appgroup /var/log/nginx && \
-    chown -R appuser:appgroup /etc/nginx/conf.d
+    chown -R appuser:appgroup /etc/nginx/conf.d && \
+    mkdir -p /tmp/nginx && \
+    chown -R appuser:appgroup /tmp/nginx && \
+    touch /tmp/nginx.pid && \
+    chown appuser:appgroup /tmp/nginx.pid
+
+# Update nginx.conf to use temp paths for non-root
+RUN sed -i 's|/run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf && \
+    sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf
 
 # Switch to non-root user
 USER appuser
