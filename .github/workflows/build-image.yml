@@ -1,4 +1,8 @@
-name: Build and Push Container Image
+# GitOps-FinOps Showcase - CI/CD Pipeline
+# Builds and pushes container image to GHCR
+# GitOps repo (gitops-cost-showcase) handles deployment via Argo CD Image Updater
+
+name: Build and Push Image
 
 on:
   push:
@@ -9,24 +13,82 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/sample-app
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
 
 jobs:
-  build:
+  # ===========================================================================
+  # TEST STAGE
+  # ===========================================================================
+  test:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run tests
+        run: yarn test
+
+  # ===========================================================================
+  # LINT STAGE
+  # ===========================================================================
+  lint:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run ESLint
+        run: yarn lint
+
+      - name: Type check
+        run: yarn build --mode development
+
+  # ===========================================================================
+  # BUILD AND PUSH STAGE
+  # ===========================================================================
+  build-and-push:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Convert IMAGE_NAME to lowercase
+        run: |
+          echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -39,63 +101,75 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=,suffix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
+      - name: Output image digest
+        run: |
+          echo "Image built and pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+  # ===========================================================================
+  # SECURITY SCAN STAGE
+  # ===========================================================================
+  security-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Convert IMAGE_NAME to lowercase
+        run: |
+          echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
-        if: github.event_name != 'pull_request'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
 
-      - name: Upload Trivy scan results
+      - name: Upload scan results
         uses: github/codeql-action/upload-sarif@v2
+        if: always()
         with:
-          sarif_file: trivy-results.sarif
-        if: github.event_name != 'pull_request' && always()
+          sarif_file: 'trivy-results.sarif'
 
-  test:
+  # ===========================================================================
+  # UPDATE GITOPS STAGE (Optional - for explicit updates)
+  # ===========================================================================
+  update-gitops:
+    name: Trigger GitOps Update
     runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-        continue-on-error: true
-
-  notify:
-    needs: [build, test]
-    runs-on: ubuntu-latest
-    if: always() && github.event_name != 'pull_request'
-    steps:
-      - name: Notify success
+      - name: Convert IMAGE_NAME to lowercase
         run: |
-          echo "✅ Image built and pushed successfully"
-          echo "Tags: latest, sha-${{ github.sha }}"
-          echo "Registry: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          echo "IMAGE_NAME=$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Output image information
+        run: |
+          echo "New image available: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+          echo ""
+          echo "Argo CD Image Updater will automatically:"
+          echo "  1. Detect the new image in GHCR"
+          echo "  2. Update gitops-cost-showcase repo (dev environment)"
+          echo "  3. Sync the change to Kubernetes"
+          echo ""
+          echo "For prod promotion, create a PR in gitops-cost-showcase repo"

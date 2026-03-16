@@ -1,65 +1,96 @@
-# Sample App - GitOps-FinOps Showcase
+# Tic-Tac-Toe - GitOps-FinOps Showcase App
 
-A simple Node.js/Express application demonstrating GitOps delivery patterns and FinOps cost allocation.
+A modern React + TypeScript + Vite tic-tac-toe game used to demonstrate GitOps and FinOps practices.
+
+## Features
+
+- ⚡ **Vite** - Fast development and optimized builds
+- ⚛️ **React 19** - Latest React with hooks
+- 🔷 **TypeScript** - Type safety
+- 🎨 **Tailwind CSS** - Modern styling
+- 🧪 **Vitest** - Unit testing
+- 🐳 **Docker** - Multi-stage production build
+- ☸️ **GitOps** - Argo CD managed deployment
+- 💰 **FinOps** - Cost allocation via Kubecost labels
 
 ## Quick Start
 
 ```bash
 # Install dependencies
-npm install
+yarn install
 
-# Run locally
-npm start
+# Run development server
+yarn dev
 
-# Run in development mode with auto-reload
-npm run dev
+# Run tests
+yarn test
+
+# Build for production
+yarn build
 ```
-
-## Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Application info |
-| `GET /health` | Health check for Kubernetes probes |
-| `GET /ready` | Readiness check |
-| `GET /metrics` | Prometheus-compatible metrics |
 
 ## Docker
 
 ```bash
 # Build image
-docker build -t sample-app:latest .
+docker build -t tic-tac-toe .
 
 # Run container
-docker run -p 8080:8080 sample-app:latest
+docker run -p 8080:80 tic-tac-toe
 
 # Test health endpoint
 curl http://localhost:8080/health
 ```
 
-## CI/CD
+## CI/CD Pipeline
 
-This repository uses GitHub Actions to:
-1. Build Docker images on every push to `main`
-2. Tag images with git SHA and semantic version
-3. Push to GitHub Container Registry (ghcr.io)
-4. Run security scanning with Trivy
+GitHub Actions workflow:
+1. **Test** - Run unit tests
+2. **Lint** - ESLint + TypeScript checks
+3. **Build & Push** - Build Docker image and push to GHCR
+4. **Security Scan** - Trivy vulnerability scan
+5. **GitOps Update** - Argo CD Image Updater detects new image
 
-## Architecture
+## GitOps Deployment
 
-- **Framework**: Express.js
-- **Runtime**: Node.js 18
-- **Port**: 8080
-- **Non-root user**: `nodejs` (UID 1001)
-- **Health checks**: Built-in HTTP probes
+This app is deployed via Argo CD from the `gitops-cost-showcase` repository:
 
-## GitOps Integration
+| Environment | Image Tag | Sync Strategy |
+|-------------|-----------|---------------|
+| Dev | `sha-XXXXXXX` (latest) | Automatic via Image Updater |
+| Prod | `vX.Y.Z` (semver) | Manual PR approval |
 
-This app is designed to work with:
-- Argo CD for GitOps delivery
-- Argo CD Image Updater for automatic promotions
-- Kubecost for cost allocation
+## FinOps Labels
+
+All deployments include cost allocation labels:
+
+```yaml
+labels:
+  environment: dev|prod
+  team: platform
+  cost-center: agency-rnd
+  owner: agency-internal
+```
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/` | Tic-tac-toe game UI |
+| `/health` | Health check (returns "healthy") |
+
+## Repository Structure
+
+```
+sample-app/
+├── .github/workflows/     # CI/CD pipeline
+├── src/                   # React source code
+├── public/                # Static assets
+├── Dockerfile             # Multi-stage build
+├── package.json           # Node dependencies
+└── README.md              # This file
+```
 
 ## License
 
-MIT
+MIT - Part of GitOps-FinOps showcase

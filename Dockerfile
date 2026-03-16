@@ -1,59 +1,73 @@
-# Multi-stage Dockerfile for sample-app
-# Stage 1: Build
-FROM node:18-alpine AS builder
+# Tic-Tac-Toe App - Multi-stage Docker Build
+# Optimized for GitOps-FinOps Showcase
+
+# =============================================================================
+# BUILD STAGE
+# =============================================================================
+FROM node:20-alpine AS build
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies (including devDependencies for build if needed)
-RUN npm install
+# Install dependencies first (better layer caching)
+COPY package*.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production=false
 
 # Copy source code
 COPY . .
 
-# Stage 2: Production
-FROM node:18-alpine AS production
+# Build the application
+RUN yarn build
 
-# Security: Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Run tests during build (fail fast if tests fail)
+RUN yarn test
 
-# Set working directory
-WORKDIR /app
+# =============================================================================
+# PRODUCTION STAGE
+# =============================================================================
+FROM nginx:alpine AS production
 
-# Copy package files
-COPY package*.json ./
+# Install security updates
+RUN apk update && apk upgrade && apk add --no-cache curl
 
-# Install production dependencies only
-RUN npm install --production && \
-    npm cache clean --force
+# Create non-root user for nginx
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
 
-# Copy application code from builder
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/public ./public
+# Copy built assets from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Change ownership to non-root user
-RUN chown -R nodejs:nodejs /app
+# Copy custom nginx config for health checks
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location /health { \
+        access_log off; \
+        return 200 "healthy\n"; \
+        add_header Content-Type text/plain; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# Set proper permissions
+RUN chown -R appuser:appgroup /usr/share/nginx/html && \
+    chown -R appuser:appgroup /var/cache/nginx && \
+    chown -R appuser:appgroup /var/log/nginx && \
+    chown -R appuser:appgroup /etc/nginx/conf.d
 
 # Switch to non-root user
-USER nodejs
+USER appuser
 
-# Expose application port
-EXPOSE 8080
+# Expose port
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+    CMD curl -f http://localhost/health || exit 1
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=8080
-
-# Graceful shutdown handling
-ENV NODE_OPTIONS="--enable-source-maps"
-
-# Start application
-CMD ["node", "src/index.js"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
