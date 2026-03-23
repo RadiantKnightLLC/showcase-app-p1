@@ -1,37 +1,50 @@
 import React from "react";
 import { History, Clock } from "lucide-react";
+import type { Game } from "../db/schema";
 
 interface GameHistoryProps {
-  history: Array<{
-    winner: string | null;
-    board: Array<string | null>;
-    date: Date;
-  }>;
+  history: Game[];
 }
 
 const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
   // Format date to a readable string
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => {
+    const d = new Date(date);
     return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
+    }).format(d);
   };
 
   // Get result text based on winner
-  const getResultText = (winner: string | null) => {
-    if (winner) {
-      return `Player ${winner} won`;
+  const getResultText = (game: Game) => {
+    if (game.winner) {
+      return (
+        <>
+          <span className="font-bold">{game.winner}</span>
+          <span className="text-gray-500"> defeated </span>
+          <span className="font-medium">
+            {game.winner === game.playerX ? game.playerO : game.playerX}
+          </span>
+        </>
+      );
     }
-    return "Draw";
+    return (
+      <>
+        <span className="font-medium">{game.playerX}</span>
+        <span className="text-gray-500"> vs </span>
+        <span className="font-medium">{game.playerO}</span>
+        <span className="text-gray-500"> - Draw</span>
+      </>
+    );
   };
 
   // Get appropriate color class based on winner
-  const getResultColorClass = (winner: string | null) => {
-    if (winner === "X") return "text-indigo-600";
-    if (winner === "O") return "text-purple-600";
-    return "text-gray-600";
+  const getResultColorClass = (game: Game) => {
+    if (!game.winner) return "text-gray-600";
+    return "text-green-600";
   };
 
   return (
@@ -45,20 +58,21 @@ const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
         {history.length === 0 ? (
           <p className="text-gray-500 text-sm italic">No games played yet</p>
         ) : (
-          [...history].reverse().map((game, index) => (
+          [...history].reverse().map((game) => (
             <div
-              key={index}
+              key={game.id}
               className="p-2 bg-white rounded border border-gray-200 text-sm"
             >
-              <div className="flex justify-between items-center mb-1">
-                <span
-                  className={`font-medium ${getResultColorClass(game.winner)}`}
-                >
-                  {getResultText(game.winner)}
+              <div className="flex justify-between items-start mb-1">
+                <span className={`${getResultColorClass(game)}`}>
+                  {getResultText(game)}
                 </span>
-                <span className="text-gray-500 flex items-center gap-1">
+              </div>
+              <div className="flex justify-between items-center text-xs text-gray-500">
+                <span>{game.moves} moves</span>
+                <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {formatDate(game.date)}
+                  {formatDate(game.createdAt)}
                 </span>
               </div>
             </div>
