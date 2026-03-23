@@ -2,7 +2,8 @@ import { useGameWithDb } from "./hooks/useGameWithDb";
 import Board from "./components/Board";
 import ScoreBoard from "./components/ScoreBoard";
 import GameHistory from "./components/GameHistory";
-import { RefreshCw, Award, Database } from "lucide-react";
+import PlayerSetup from "./components/PlayerSetup";
+import { RefreshCw, Award, Database, Users } from "lucide-react";
 import "./index.css";
 
 function App() {
@@ -11,19 +12,23 @@ function App() {
     winningLine,
     playerX,
     playerO,
-    setPlayerX,
-    setPlayerO,
+    setPlayerNames,
+    showSetup,
     scores,
     gameHistory,
     isLoading,
     handleClick,
     resetGame,
     resetStats,
+    startNewGame,
     getStatusMessage,
   } = useGameWithDb();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex flex-col items-center justify-center p-4">
+      {/* Player Setup Modal */}
+      {showSetup && <PlayerSetup onStartGame={setPlayerNames} />}
+
       <div className="max-w-4xl w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-6 bg-indigo-600 text-white text-center">
           <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
@@ -53,12 +58,20 @@ function App() {
 
             <div className="mt-6 flex gap-4">
               <button
-                onClick={resetGame}
-                disabled={isLoading}
+                onClick={startNewGame}
+                disabled={isLoading || showSetup}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
               >
-                <RefreshCw className="h-4 w-4" />
+                <Users className="h-4 w-4" />
                 New Game
+              </button>
+              <button
+                onClick={resetGame}
+                disabled={isLoading || showSetup}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Rematch
               </button>
               <button
                 onClick={resetStats}
@@ -72,13 +85,13 @@ function App() {
 
           {/* Stats section */}
           <div className="flex flex-col gap-6">
-            <ScoreBoard 
-              scores={scores} 
-              playerX={playerX}
-              playerO={playerO}
-              onPlayerXChange={setPlayerX}
-              onPlayerOChange={setPlayerO}
-            />
+            {!showSetup && (
+              <ScoreBoard 
+                scores={scores} 
+                playerX={playerX}
+                playerO={playerO}
+              />
+            )}
             <GameHistory history={gameHistory} />
           </div>
         </div>

@@ -15,8 +15,10 @@ interface UseGameWithDbReturn {
   // Player names
   playerX: string;
   playerO: string;
-  setPlayerX: (name: string) => void;
-  setPlayerO: (name: string) => void;
+  setPlayerNames: (x: string, o: string) => void;
+  
+  // UI State
+  showSetup: boolean;
   
   // Scores and history
   scores: { X: number; O: number; draws: number };
@@ -29,6 +31,7 @@ interface UseGameWithDbReturn {
   handleClick: (index: number) => void;
   resetGame: () => void;
   resetStats: () => Promise<void>;
+  startNewGame: () => void;
   
   // Status message
   getStatusMessage: () => string;
@@ -44,26 +47,27 @@ export function useGameWithDb(): UseGameWithDbReturn {
   const [gameStatus, setGameStatus] = useState<"playing" | "won" | "draw">("playing");
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   
-  // Player names (load from localStorage if available)
-  const [playerX, setPlayerX] = useState(() => {
-    return localStorage.getItem("tictactoe-player-x") || "Player X";
-  });
-  const [playerO, setPlayerO] = useState(() => {
-    return localStorage.getItem("tictactoe-player-o") || "Player O";
-  });
+  // Player names
+  const [playerX, setPlayerX] = useState("");
+  const [playerO, setPlayerO] = useState("");
+  const [showSetup, setShowSetup] = useState(true);
   
   // Scores and history
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
   const [gameHistory, setGameHistory] = useState<Game[]>([]);
   
-  // Persist player names to localStorage
-  useEffect(() => {
-    localStorage.setItem("tictactoe-player-x", playerX);
-  }, [playerX]);
+  // Set player names from setup
+  const setPlayerNames = (x: string, o: string) => {
+    setPlayerX(x);
+    setPlayerO(o);
+    setShowSetup(false);
+  };
   
-  useEffect(() => {
-    localStorage.setItem("tictactoe-player-o", playerO);
-  }, [playerO]);
+  // Start a new game (show setup)
+  const startNewGame = () => {
+    resetGame();
+    setShowSetup(true);
+  };
   
   // Initialize database and load history
   useEffect(() => {
@@ -161,7 +165,7 @@ export function useGameWithDb(): UseGameWithDbReturn {
     setXIsNext(!xIsNext);
   }, [board, xIsNext, gameStatus]);
   
-  // Reset the game
+  // Reset the game (keep same players)
   const resetGame = useCallback(() => {
     setBoard(Array(9).fill(null));
     setXIsNext(true);
@@ -177,6 +181,7 @@ export function useGameWithDb(): UseGameWithDbReturn {
       setScores({ X: 0, O: 0, draws: 0 });
       setGameHistory([]);
       resetGame();
+      setShowSetup(true);
     } catch (error) {
       console.error("Failed to reset stats:", error);
     }
@@ -201,14 +206,15 @@ export function useGameWithDb(): UseGameWithDbReturn {
     winningLine,
     playerX,
     playerO,
-    setPlayerX,
-    setPlayerO,
+    setPlayerNames,
+    showSetup,
     scores,
     gameHistory,
     isLoading,
     handleClick,
     resetGame,
     resetStats,
+    startNewGame,
     getStatusMessage,
   };
 }
