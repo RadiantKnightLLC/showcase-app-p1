@@ -13,6 +13,7 @@ function App() {
     playerX,
     playerO,
     setPlayerNames,
+    previousPlayers,
     showSetup,
     scores,
     gameHistory,
@@ -27,7 +28,12 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex flex-col items-center justify-center p-4">
       {/* Player Setup Modal */}
-      {showSetup && <PlayerSetup onStartGame={setPlayerNames} />}
+      {showSetup && (
+        <PlayerSetup 
+          onStartGame={setPlayerNames} 
+          previousPlayers={previousPlayers}
+        />
+      )}
 
       <div className="max-w-4xl w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-6 bg-indigo-600 text-white text-center">

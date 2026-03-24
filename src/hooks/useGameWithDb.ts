@@ -16,6 +16,7 @@ interface UseGameWithDbReturn {
   playerX: string;
   playerO: string;
   setPlayerNames: (x: string, o: string) => void;
+  previousPlayers: { playerX: string; playerO: string } | null;
   
   // UI State
   showSetup: boolean;
@@ -51,6 +52,7 @@ export function useGameWithDb(): UseGameWithDbReturn {
   const [playerX, setPlayerX] = useState("");
   const [playerO, setPlayerO] = useState("");
   const [showSetup, setShowSetup] = useState(true);
+  const [previousPlayers, setPreviousPlayers] = useState<{ playerX: string; playerO: string } | null>(null);
   
   // Scores and history
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
@@ -61,6 +63,8 @@ export function useGameWithDb(): UseGameWithDbReturn {
     setPlayerX(x);
     setPlayerO(o);
     setShowSetup(false);
+    // Save as previous players for next time
+    setPreviousPlayers({ playerX: x, playerO: o });
   };
   
   // Start a new game (show setup)
@@ -68,6 +72,26 @@ export function useGameWithDb(): UseGameWithDbReturn {
     resetGame();
     setShowSetup(true);
   };
+  
+  // Load previous players from database on mount
+  useEffect(() => {
+    async function loadPreviousPlayers() {
+      try {
+        const db = await getDb();
+        const lastGame = await db.select().from(games).orderBy(desc(games.createdAt)).limit(1);
+        if (lastGame.length > 0) {
+          setPreviousPlayers({
+            playerX: lastGame[0].playerX,
+            playerO: lastGame[0].playerO,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load previous players:", error);
+      }
+    }
+    
+    loadPreviousPlayers();
+  }, []);
   
   // Initialize database and load history
   useEffect(() => {
@@ -131,6 +155,8 @@ export function useGameWithDb(): UseGameWithDbReturn {
       });
       await loadGameHistory();
       await calculateScores();
+      // Update previous players to current game
+      setPreviousPlayers({ playerX, playerO });
     } catch (error) {
       console.error("Failed to save game:", error);
     }
@@ -182,6 +208,10 @@ export function useGameWithDb(): UseGameWithDbReturn {
       setGameHistory([]);
       resetGame();
       setShowSetup(true);
+      setPreviousPlayers(null);
+      // Clear localStorage
+      localStorage.removeItem("tictactoe-last-player-x");
+      localStorage.removeItem("tictactoe-last-player-o");
     } catch (error) {
       console.error("Failed to reset stats:", error);
     }
@@ -207,6 +237,7 @@ export function useGameWithDb(): UseGameWithDbReturn {
     playerX,
     playerO,
     setPlayerNames,
+    previousPlayers,
     showSetup,
     scores,
     gameHistory,
